@@ -1,0 +1,3 @@
+[submodule "underdispersion_data"]
+	path = underdispersion_data
+	url = git@gitlab.com:cgroll/underdispersion_data.git
