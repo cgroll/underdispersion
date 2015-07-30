@@ -42,7 +42,7 @@ var bisectDate = d3.bisector(function(d) { return d; }).left;
 
 var vertMove = 0;
 
-var tsdata = d3.csv("../data/normedPrices.csv", function (data) {
+var tsdata = d3.csv("../underdispersion_data/normedPrices.csv", function (data) {
     
     var stockNames = d3.keys(data[0]).filter(function(key) { return key !== "idx"; });
     
