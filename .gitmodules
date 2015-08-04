@@ -1,3 +1,6 @@
 [submodule "underdispersion_data"]
 	path = underdispersion_data
 	url = git@gitlab.com:cgroll/underdispersion_data.git
+[submodule "market_risk_data"]
+	path = market_risk_data
+	url = git@gitlab.com:cgroll/market_risk_data.git
