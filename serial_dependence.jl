@@ -12,6 +12,7 @@ using DataFrames
 using TimeData
 using Econometrics
 using DataArrays
+using Distributions
 using Gadfly
 
 loadPlotting()
@@ -42,7 +43,7 @@ for chosenStock=6:20
 
     ## simulate returns
     nSim = 2
-    simRets, simPrices = simIIDVals_norm(realPrices, nSim)
+    simRets, simPrices = simIIDVals_t(realPrices, nSim)
 
     for chosenSim=1:nSim
         ## plot price evolutions
@@ -79,7 +80,7 @@ for chosenStock=6:20
 
         ## create figure name
         stockName = string(names(realPrices)[1])
-        picName = string("pics/", stockName, "_sim_", string(chosenSim), ".pdf")
+        picName = string("pics/", stockName, "_sim_tls", string(chosenSim), ".pdf")
         
         draw(PDF(picName, 30cm, 50cm),
              vstack(pEvol,
@@ -97,7 +98,7 @@ end
 ## aggregated return distribution ##
 ####################################
 
-for chosenStock=11:nAss
+for chosenStock=21:nAss
     display(chosenStock)
     realPrices = normedPrices[chosenStock]
 
@@ -114,7 +115,7 @@ for chosenStock=11:nAss
 
         stockName = string(names(realPrices)[1])
         picName = string("pics/aggrRetDistr", stockName, ".png")
-        picNameSim = string("pics/aggrRetDistr", stockName, "_sim", ".png")
+        picNameSim = string("pics/aggrRetDistr", stockName, "_sim_norm", ".png")
 
         draw(PNG(picName, 10cm, 10cm), pDistr_real)
         draw(PNG(picNameSim, 10cm, 10cm), pDistr_sim)

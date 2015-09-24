@@ -37,10 +37,10 @@ function simIIDVals_norm(logPricesTn::Timenum, nPaths::Int = 1)
     
     ## fix names
     if nPaths == 1
-        colName = symbol(string(names(logPricesTn.vals)[1], "_sim"))
+        colName = symbol(string(names(logPricesTn.vals)[1], "_sim_norm"))
         rename!(simRetsDf, :x1, colName)
     else
-        nams = [symbol(string(names(logPricesTn.vals)[1], "_sim$ii")) for ii=1:nPaths]
+        nams = [symbol(string(names(logPricesTn.vals)[1], "_sim_norm$ii")) for ii=1:nPaths]
         names!(simRetsDf, nams)
     end
     
@@ -54,6 +54,61 @@ end
 function simNormRets(nRets::Int, mu::Float64, sigma::Float64)
     return randn(nRets)*sigma + mu
 end
+
+function simIIDVals_t(logPricesTn::Timenum, nPaths::Int = 1)
+    # logPricesTn should be only one asset
+    nObs, nAss = size(logPricesTn)
+    
+    if nAss != 1
+        error("Original data must be exactly one asset.")
+    end
+    
+    # get logRets
+    logRets = price2ret(logPricesTn, log=true)
+    
+    ## get returns without NAs
+    pureRets = dropna(logRets.vals[1])
+    nRets = size(pureRets, 1)
+    
+    # get parameters
+    nuHat, muHat, aHat = fit(TLSDist, pureRets)
+    
+    simRetsDf = DataFrame()
+    noNAInds = !isna(logRets.vals[1])
+    for ii=1:nPaths
+        # simulate values
+        simVals = simTLSrets(nRets, nuHat, muHat, aHat)
+        
+        ## fill values into DataArray
+        simRetsDa = DataArray(Float64, nObs-1)
+        simRetsDa[noNAInds] = simVals
+        
+        ## copy values to DataFrame
+        simRetsDf[ii] = simRetsDa
+    end
+    
+    ## fix names
+    if nPaths == 1
+        colName = symbol(string(names(logPricesTn.vals)[1], "_sim_tls"))
+        rename!(simRetsDf, :x1, colName)
+    else
+        nams = [symbol(string(names(logPricesTn.vals)[1], "_sim_tls$ii")) for ii=1:nPaths]
+        names!(simRetsDf, nams)
+    end
+    
+    simRets = Timenum(simRetsDf, idx(logRets))
+    simPrices = ret2price(simRets)
+    idx(simPrices)[1] = idx(logPricesTn)[1]
+    
+    return (simRets, simPrices)
+end
+
+function simTLSrets(nRets::Int, nu::Float64,
+                    mu::Float64, a::Float64)
+    tls = TLSDist(nu, mu, a)
+    return rand(tls, nRets)
+end
+    
 
 ###########################
 ## aggregation functions ##
@@ -80,11 +135,22 @@ end
 
 function calcNumbRets(nRets::Int, minAggrDays::Int, maxAggrDays::Int)
     # 51 obs, 50 window -> 2 overlapping returns
-    ## nAggrSamples = nRets - windowLength + 1
+    maxWindowLength = minimum([nRets; maxAggrDays])
     nAggrSamples = [nRets - windowLength + 1
-                    for windowLength in (minAggrDays+1):1:maxAggrDays]
+                    for windowLength in (minAggrDays+1):1:maxWindowLength]
     return sum(nAggrSamples)
 end
+
+function calcNumbRets2(nRets::Int, minAggrDays::Int, maxAggrDays::Int)
+    if minAggrDays >= nRets
+        return 0
+    end
+    windowSizes = [1:nRets]
+    frequencies = [nRets:-1:1]
+    validWindows = (windowSizes .> minAggrDays) & (windowSizes .< maxAggrDays)
+    return sum(frequencies[validWindows])
+end
+
 
 ## get aggregated returns
 ##-----------------------
@@ -145,7 +211,7 @@ function getAggrRets(logRets::AbstractTimenum,
     for windowLength in (minAggrDays+1):1:maxAggrDays
         firstSumUnknown = true
         for ii=1:(nRets-windowLength+1)
-            if (ii+windowLength-1) < nRets
+            if (ii+windowLength-1) <= nRets
                 if firstSumUnknown
                     aggrRets[counter, 1] = windowLength
                     aggrRets[counter, 2] = sum(rets[ii:(ii+windowLength-1)])
